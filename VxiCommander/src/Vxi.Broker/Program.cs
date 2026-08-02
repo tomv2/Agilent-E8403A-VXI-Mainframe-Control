@@ -6,6 +6,25 @@ using Vxi.Protocol;
 using Vxi.Core;
 using Vxi.Transport.Gpib;
 
+
+const string WebPage="""
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VXI Commander</title><style>body{font-family:system-ui;margin:2rem;max-width:1200px}button{padding:.55rem .9rem;margin:.3rem}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:.4rem}input,select{width:100%;box-sizing:border-box}pre{background:#111;color:#eee;padding:1rem;overflow:auto}.note{background:#eef;padding:.8rem}</style></head><body>
+<h1>VXI Commander</h1><p class="note">This page is local-only by default. From Windows use: <code>ssh -L 8080:127.0.0.1:8080 user@rpi</code>, then open <code>http://127.0.0.1:8080</code>.</p>
+<button onclick="discover()">Discover GPIB</button><button onclick="addRow()">Add module manually</button><button onclick="save()">Save inventory</button>
+<h2>Discovery</h2><pre id="discovery">Not scanned yet.</pre>
+<h2>Module inventory</h2><table><thead><tr><th>ID</th><th>Name</th><th>Driver</th><th>Maker</th><th>Model</th><th>Bus</th><th>PAD</th><th>SAD</th><th>Slot</th><th>Logical</th><th>Card</th><th></th></tr></thead><tbody id="rows"></tbody></table><pre id="message"></pre>
+<script>
+let drivers=[],buses=[];const q=s=>document.querySelector(s);const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
+async function init(){let s=await (await fetch('/api/status')).json();drivers=s.drivers;buses=s.buses;let inv=await (await fetch('/api/inventory')).json();inv.forEach(addRow);}
+function options(xs,val,key='id'){return xs.map(x=>`<option ${x[key]===val?'selected':''}>${esc(x[key])}</option>`).join('')}
+function addRow(x={id:'module-'+(q('#rows').children.length+1),friendlyName:'',driverId:drivers[0]?.id||'',manufacturer:'',model:'',enabled:true,manuallyAssigned:true,address:{busId:buses[0]?.id||'gpib0',primaryAddress:0,secondaryAddress:0,physicalSlot:null,logicalAddress:null,switchboxCardNumber:null}}){let tr=document.createElement('tr');tr.innerHTML=`<td><input data-k=id value="${esc(x.id)}"></td><td><input data-k=friendlyName value="${esc(x.friendlyName)}"></td><td><select data-k=driverId>${options(drivers,x.driverId)}</select></td><td><input data-k=manufacturer value="${esc(x.manufacturer)}"></td><td><input data-k=model value="${esc(x.model)}"></td><td><select data-a=busId>${options(buses,x.address.busId)}</select></td>${['primaryAddress','secondaryAddress','physicalSlot','logicalAddress','switchboxCardNumber'].map(k=>`<td><input type=number data-a=${k} value="${x.address[k]??''}"></td>`).join('')}<td><button onclick="this.closest('tr').remove()">Remove</button></td>`;q('#rows').appendChild(tr)}
+function inventory(){return [...q('#rows').children].map(tr=>{let o={enabled:true,manuallyAssigned:true,address:{}};tr.querySelectorAll('[data-k]').forEach(e=>o[e.dataset.k]=e.value);tr.querySelectorAll('[data-a]').forEach(e=>o.address[e.dataset.a]=e.value===''?null:(e.type==='number'?Number(e.value):e.value));return o})}
+async function save(){let r=await fetch('/api/inventory',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(inventory())});q('#message').textContent=await r.text()}
+async function discover(){q('#discovery').textContent='Scanning...';let r=await fetch('/api/discover',{method:'POST'});q('#discovery').textContent=JSON.stringify(await r.json(),null,2)}
+init();
+</script></body></html>
+""";
+
 string configPath=Environment.GetEnvironmentVariable("VXI_CONFIG")??"/etc/vxi-controller/appsettings.json";
 var cfg=ConfigLoader.Load(configPath);
 var runner=new DriverRunner(cfg);
@@ -53,21 +72,3 @@ async Task HandleHttp(HttpListenerContext ctx){try{string path=ctx.Request.Url?.
 
 static async Task Json(HttpListenerContext c,object value)=>await Write(c,"application/json",JsonSerializer.Serialize(value,new JsonSerializerOptions(JsonDefaults.Options){WriteIndented=true}));
 static async Task Write(HttpListenerContext c,string type,string text){byte[] b=Encoding.UTF8.GetBytes(text);c.Response.ContentType=type;c.Response.ContentLength64=b.Length;await c.Response.OutputStream.WriteAsync(b);c.Response.Close();}
-
-const string WebPage="""
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VXI Commander</title><style>body{font-family:system-ui;margin:2rem;max-width:1200px}button{padding:.55rem .9rem;margin:.3rem}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:.4rem}input,select{width:100%;box-sizing:border-box}pre{background:#111;color:#eee;padding:1rem;overflow:auto}.note{background:#eef;padding:.8rem}</style></head><body>
-<h1>VXI Commander</h1><p class="note">This page is local-only by default. From Windows use: <code>ssh -L 8080:127.0.0.1:8080 user@rpi</code>, then open <code>http://127.0.0.1:8080</code>.</p>
-<button onclick="discover()">Discover GPIB</button><button onclick="addRow()">Add module manually</button><button onclick="save()">Save inventory</button>
-<h2>Discovery</h2><pre id="discovery">Not scanned yet.</pre>
-<h2>Module inventory</h2><table><thead><tr><th>ID</th><th>Name</th><th>Driver</th><th>Maker</th><th>Model</th><th>Bus</th><th>PAD</th><th>SAD</th><th>Slot</th><th>Logical</th><th>Card</th><th></th></tr></thead><tbody id="rows"></tbody></table><pre id="message"></pre>
-<script>
-let drivers=[],buses=[];const q=s=>document.querySelector(s);const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
-async function init(){let s=await (await fetch('/api/status')).json();drivers=s.drivers;buses=s.buses;let inv=await (await fetch('/api/inventory')).json();inv.forEach(addRow);}
-function options(xs,val,key='id'){return xs.map(x=>`<option ${x[key]===val?'selected':''}>${esc(x[key])}</option>`).join('')}
-function addRow(x={id:'module-'+(q('#rows').children.length+1),friendlyName:'',driverId:drivers[0]?.id||'',manufacturer:'',model:'',enabled:true,manuallyAssigned:true,address:{busId:buses[0]?.id||'gpib0',primaryAddress:0,secondaryAddress:0,physicalSlot:null,logicalAddress:null,switchboxCardNumber:null}}){let tr=document.createElement('tr');tr.innerHTML=`<td><input data-k=id value="${esc(x.id)}"></td><td><input data-k=friendlyName value="${esc(x.friendlyName)}"></td><td><select data-k=driverId>${options(drivers,x.driverId)}</select></td><td><input data-k=manufacturer value="${esc(x.manufacturer)}"></td><td><input data-k=model value="${esc(x.model)}"></td><td><select data-a=busId>${options(buses,x.address.busId)}</select></td>${['primaryAddress','secondaryAddress','physicalSlot','logicalAddress','switchboxCardNumber'].map(k=>`<td><input type=number data-a=${k} value="${x.address[k]??''}"></td>`).join('')}<td><button onclick="this.closest('tr').remove()">Remove</button></td>`;q('#rows').appendChild(tr)}
-function inventory(){return [...q('#rows').children].map(tr=>{let o={enabled:true,manuallyAssigned:true,address:{}};tr.querySelectorAll('[data-k]').forEach(e=>o[e.dataset.k]=e.value);tr.querySelectorAll('[data-a]').forEach(e=>o.address[e.dataset.a]=e.value===''?null:(e.type==='number'?Number(e.value):e.value));return o})}
-async function save(){let r=await fetch('/api/inventory',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(inventory())});q('#message').textContent=await r.text()}
-async function discover(){q('#discovery').textContent='Scanning...';let r=await fetch('/api/discover',{method:'POST'});q('#discovery').textContent=JSON.stringify(await r.json(),null,2)}
-init();
-</script></body></html>
-""";
