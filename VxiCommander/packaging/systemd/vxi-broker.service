@@ -1,6 +1,7 @@
 [Unit]
-Description=VXI Controller Broker
+Description=VXI Commander Broker
 After=network.target
+
 [Service]
 Type=simple
 User=vxi-broker
@@ -16,8 +17,9 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/run/vxi-controller /var/log/vxi-controller /var/lib/vxi-controller
-RestrictAddressFamilies=AF_UNIX
+RestrictAddressFamilies=AF_UNIX AF_INET
 LockPersonality=true
 MemoryDenyWriteExecute=true
+
 [Install]
 WantedBy=multi-user.target

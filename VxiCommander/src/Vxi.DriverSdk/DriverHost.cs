@@ -14,11 +14,11 @@ public static class DriverHost {
   string? line=await Console.In.ReadLineAsync(); if(string.IsNullOrWhiteSpace(line)) return 2;
   DriverRequest? req=null; try { req=JsonSerializer.Deserialize<DriverRequest>(line,JsonDefaults.Options)??throw new InvalidDataException("Empty request"); if(req.ProtocolVersion!=ProtocolConstants.Version)throw new InvalidOperationException("Unsupported protocol version");
    DriverResponse result=req.Action switch {
-    "identity"=>new(1,req.RequestId,true,Driver:driver.Identity),
-    "describe" when req.Instrument is not null=>new(1,req.RequestId,true,Driver:driver.Identity,Operations:driver.Describe(req.Instrument)),
-    "generate" when req.Instrument is not null && req.OperationId is not null=>new(1,req.RequestId,true,Commands:driver.Generate(req.Instrument,req.OperationId,req.Parameters??new())),
+    "identity"=>new(ProtocolConstants.Version,req.RequestId,true,Driver:driver.Identity),
+    "describe" when req.Instrument is not null=>new(ProtocolConstants.Version,req.RequestId,true,Driver:driver.Identity,Operations:driver.Describe(req.Instrument)),
+    "generate" when req.Instrument is not null && req.OperationId is not null=>new(ProtocolConstants.Version,req.RequestId,true,Commands:driver.Generate(req.Instrument,req.OperationId,req.Parameters??new())),
     _=>throw new InvalidOperationException("Invalid driver action")};
    await Console.Out.WriteLineAsync(JsonSerializer.Serialize(result,JsonDefaults.Options)); return 0;
-  } catch(Exception ex){await Console.Out.WriteLineAsync(JsonSerializer.Serialize(new DriverResponse(1,req?.RequestId??"unknown",false,Error:ex.Message),JsonDefaults.Options)); return 1;}
+  } catch(Exception ex){await Console.Out.WriteLineAsync(JsonSerializer.Serialize(new DriverResponse(ProtocolConstants.Version,req?.RequestId??"unknown",false,Error:ex.Message),JsonDefaults.Options)); return 1;}
  }
 }
