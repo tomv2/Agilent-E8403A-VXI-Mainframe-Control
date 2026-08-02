@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>vxi-driver-racal3271</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../../src/Vxi.DriverSdk/Vxi.DriverSdk.csproj" /></ItemGroup></Project>
