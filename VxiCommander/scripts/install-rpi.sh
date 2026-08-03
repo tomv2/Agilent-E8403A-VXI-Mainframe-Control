@@ -4,7 +4,7 @@ set -e
 if systemctl list-unit-files vxi-broker.service >/dev/null 2>&1; then
     systemctl stop vxi-broker.service || true
 fi
-uo pipefail
+set -uo pipefail
 [[ $EUID -eq 0 ]] || { echo "Run with sudo"; exit 1; }
 REL="${1:-./release}"; OPERATOR="${SUDO_USER:-pi}"
 getent group vxi-operators >/dev/null || groupadd --system vxi-operators

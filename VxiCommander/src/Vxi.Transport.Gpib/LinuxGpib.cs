@@ -10,16 +10,21 @@ public sealed class LinuxGpib:IDisposable {
  [DllImport("libgpib.so.0")]static extern int ibonl(int ud,int v);
  [DllImport("libgpib.so.0")]static extern int ibln(int board,int pad,int sad,out short listen);
  [DllImport("libgpib.so.0")]static extern int ThreadIbsta(); [DllImport("libgpib.so.0")]static extern int ThreadIberr(); [DllImport("libgpib.so.0")]static extern long ThreadIbcntl();
- const int ERR=0x8000; readonly int _ud; readonly SemaphoreSlim _gate=new(1,1);
- public LinuxGpib(GpibConnectionConfig c){_ud=ibdev(c.BoardIndex,c.PrimaryAddress,c.SecondaryAddress,c.TimeoutCode,c.SendEoi?1:0,c.EosMode);Check("ibdev");}
+ const int ERR=0x8000;
+ public static int EncodeSecondaryAddress(int secondary){
+  if(secondary<0||secondary>30)throw new ArgumentOutOfRangeException(nameof(secondary));
+  return 0x60+secondary;
+ }
+ readonly int _ud; readonly SemaphoreSlim _gate=new(1,1);
+ public LinuxGpib(GpibConnectionConfig c){_ud=ibdev(c.BoardIndex,c.PrimaryAddress,EncodeSecondaryAddress(c.SecondaryAddress),c.TimeoutCode,c.SendEoi?1:0,c.EosMode);Check("ibdev");}
  void Check(string op){if((ThreadIbsta()&ERR)!=0)throw new IOException($"{op} failed: iberr={ThreadIberr()}, ibcnt={ThreadIbcntl()}");}
  public async Task<string?> ExecuteAsync(string command,bool query,CancellationToken ct){await _gate.WaitAsync(ct);try{var bytes=Encoding.ASCII.GetBytes(command+"\n");ibwrt(_ud,bytes,(nuint)bytes.Length);Check("ibwrt");if(!query)return null;var b=new byte[65536];ibrd(_ud,b,(nuint)b.Length);Check("ibrd");return Encoding.ASCII.GetString(b,0,(int)ThreadIbcntl()).TrimEnd('\0','\r','\n');}finally{_gate.Release();}}
- public static bool IsListener(int board,int primary,int secondary){int rc=ibln(board,primary,secondary,out short listen);if(rc<0||(ThreadIbsta()&ERR)!=0)return false;return listen!=0;}
+ public static bool IsListener(int board,int primary,int secondary){int rc=ibln(board,primary,EncodeSecondaryAddress(secondary),out short listen);if(rc<0||(ThreadIbsta()&ERR)!=0)return false;return listen!=0;}
  public void Dispose(){ibonl(_ud,0);_gate.Dispose();}
 }
 
 public static class GpibDiscovery {
- public static async Task<IReadOnlyList<GpibProbeResult>> ScanAsync(int board,int timeoutCode,CancellationToken ct){var found=new List<GpibProbeResult>();for(int primary=0;primary<=30;primary++){ct.ThrowIfCancellationRequested();if(!LinuxGpib.IsListener(board,primary,0))continue;for(int secondary=0;secondary<=30;secondary++){ct.ThrowIfCancellationRequested();if(secondary>0&&!LinuxGpib.IsListener(board,primary,secondary))continue;string? idn=null,config=null;try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));idn=await dev.ExecuteAsync("*IDN?",true,ct);}catch{}
+ public static async Task<IReadOnlyList<GpibProbeResult>> ScanAsync(int board,int timeoutCode,CancellationToken ct){var found=new List<GpibProbeResult>();for(int primary=1;primary<=30;primary++){ct.ThrowIfCancellationRequested();if(!LinuxGpib.IsListener(board,primary,0))continue;for(int secondary=0;secondary<=30;secondary++){ct.ThrowIfCancellationRequested();if(secondary>0&&!LinuxGpib.IsListener(board,primary,secondary))continue;string? idn=null,config=null;try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));idn=await dev.ExecuteAsync("*IDN?",true,ct);}catch{}
    string kind=Classify(idn,secondary);if(kind=="e1406a-controller"){try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));config=await dev.ExecuteAsync("VXI:CONF:DLIS?",true,ct);}catch{}}
    found.Add(new(board,primary,secondary,idn,kind,config));}}
  return found;}
