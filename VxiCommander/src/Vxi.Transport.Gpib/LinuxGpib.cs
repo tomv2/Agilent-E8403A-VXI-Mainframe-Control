@@ -1,28 +1,270 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
+
 namespace Vxi.Transport.Gpib;
 
-public sealed record GpibConnectionConfig(int BoardIndex,int PrimaryAddress,int SecondaryAddress,int TimeoutCode=13,bool SendEoi=true,int EosMode=0);
-public sealed class LinuxGpib:IDisposable {
- [DllImport("libgpib.so.0")]static extern int ibdev(int b,int pad,int sad,int tmo,int eot,int eos);
- [DllImport("libgpib.so.0")]static extern int ibwrt(int ud,byte[] data,nuint count);
- [DllImport("libgpib.so.0")]static extern int ibrd(int ud,byte[] data,nuint count);
- [DllImport("libgpib.so.0")]static extern int ibonl(int ud,int v);
- [DllImport("libgpib.so.0")]static extern int ibln(int board,int pad,int sad,out short listen);
- [DllImport("libgpib.so.0")]static extern int ThreadIbsta(); [DllImport("libgpib.so.0")]static extern int ThreadIberr(); [DllImport("libgpib.so.0")]static extern long ThreadIbcntl();
- const int ERR=0x8000; readonly int _ud; readonly SemaphoreSlim _gate=new(1,1);
- public LinuxGpib(GpibConnectionConfig c){_ud=ibdev(c.BoardIndex,c.PrimaryAddress,c.SecondaryAddress,c.TimeoutCode,c.SendEoi?1:0,c.EosMode);Check("ibdev");}
- void Check(string op){if((ThreadIbsta()&ERR)!=0)throw new IOException($"{op} failed: iberr={ThreadIberr()}, ibcnt={ThreadIbcntl()}");}
- public async Task<string?> ExecuteAsync(string command,bool query,CancellationToken ct){await _gate.WaitAsync(ct);try{var bytes=Encoding.ASCII.GetBytes(command+"\n");ibwrt(_ud,bytes,(nuint)bytes.Length);Check("ibwrt");if(!query)return null;var b=new byte[65536];ibrd(_ud,b,(nuint)b.Length);Check("ibrd");return Encoding.ASCII.GetString(b,0,(int)ThreadIbcntl()).TrimEnd('\0','\r','\n');}finally{_gate.Release();}}
- public static bool IsListener(int board,int primary,int secondary){int rc=ibln(board,primary,secondary,out short listen);if(rc<0||(ThreadIbsta()&ERR)!=0)return false;return listen!=0;}
- public void Dispose(){ibonl(_ud,0);_gate.Dispose();}
+public sealed record GpibConnectionConfig(
+    int BoardIndex,
+    int PrimaryAddress,
+    int SecondaryAddress,
+    int TimeoutCode = 13,
+    bool SendEoi = true,
+    int EosMode = 0);
+
+public sealed class LinuxGpib : IDisposable
+{
+    [DllImport("libgpib.so.0")] private static extern int ibdev(int board, int pad, int sad, int timeout, int eot, int eos);
+    [DllImport("libgpib.so.0")] private static extern int ibwrt(int descriptor, byte[] data, nuint count);
+    [DllImport("libgpib.so.0")] private static extern int ibrd(int descriptor, byte[] data, nuint count);
+    [DllImport("libgpib.so.0")] private static extern int ibclr(int descriptor);
+    [DllImport("libgpib.so.0")] private static extern int ibonl(int descriptor, int online);
+    [DllImport("libgpib.so.0")] private static extern int ThreadIbsta();
+    [DllImport("libgpib.so.0")] private static extern int ThreadIberr();
+    [DllImport("libgpib.so.0")] private static extern long ThreadIbcntl();
+
+    private const int ErrorFlag = 0x8000;
+    private readonly int _descriptor;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
+    public LinuxGpib(GpibConnectionConfig config)
+    {
+        ValidateAddress(config.PrimaryAddress, nameof(config.PrimaryAddress));
+        ValidateAddress(config.SecondaryAddress, nameof(config.SecondaryAddress));
+
+        // linux-gpib uses 0 to mean "no secondary addressing". A real SAD N is
+        // represented by the IEEE-488 listen/talk address byte 0x60 + N.
+        int encodedSecondaryAddress = EncodeSecondaryAddress(config.SecondaryAddress);
+        _descriptor = ibdev(
+            config.BoardIndex,
+            config.PrimaryAddress,
+            encodedSecondaryAddress,
+            config.TimeoutCode,
+            config.SendEoi ? 1 : 0,
+            config.EosMode);
+        Check("ibdev");
+    }
+
+    public static int EncodeSecondaryAddress(int secondaryAddress)
+    {
+        ValidateAddress(secondaryAddress, nameof(secondaryAddress));
+        return 0x60 + secondaryAddress;
+    }
+
+    public async Task<string?> ExecuteAsync(string command, bool query, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(command)) throw new ArgumentException("Command is required.", nameof(command));
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(command.TrimEnd('\r', '\n') + "\n");
+            int status = ibwrt(_descriptor, bytes, (nuint)bytes.Length);
+            Check("ibwrt", status);
+
+            if (!query) return null;
+
+            byte[] buffer = new byte[65536];
+            status = ibrd(_descriptor, buffer, (nuint)(buffer.Length - 1));
+            Check("ibrd", status);
+            int count = checked((int)Math.Clamp(ThreadIbcntl(), 0, buffer.Length - 1));
+            return Encoding.ASCII.GetString(buffer, 0, count).TrimEnd('\0', '\r', '\n');
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task ClearAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            int status = ibclr(_descriptor);
+            Check("ibclr", status);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private static void ValidateAddress(int value, string name)
+    {
+        if (value is < 0 or > 30) throw new ArgumentOutOfRangeException(name, "GPIB addresses must be 0..30.");
+    }
+
+    private static void Check(string operation, int? statusOverride = null)
+    {
+        int status = statusOverride ?? ThreadIbsta();
+        if ((status & ErrorFlag) != 0)
+        {
+            throw new IOException($"{operation} failed: ibsta=0x{status:X}, iberr={ThreadIberr()}, ibcnt={ThreadIbcntl()}");
+        }
+    }
+
+    public void Dispose()
+    {
+        ibonl(_descriptor, 0);
+        _gate.Dispose();
+    }
 }
 
-public static class GpibDiscovery {
- public static async Task<IReadOnlyList<GpibProbeResult>> ScanAsync(int board,int timeoutCode,CancellationToken ct){var found=new List<GpibProbeResult>();for(int primary=0;primary<=30;primary++){ct.ThrowIfCancellationRequested();if(!LinuxGpib.IsListener(board,primary,0))continue;for(int secondary=0;secondary<=30;secondary++){ct.ThrowIfCancellationRequested();if(secondary>0&&!LinuxGpib.IsListener(board,primary,secondary))continue;string? idn=null,config=null;try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));idn=await dev.ExecuteAsync("*IDN?",true,ct);}catch{}
-   string kind=Classify(idn,secondary);if(kind=="e1406a-controller"){try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));config=await dev.ExecuteAsync("VXI:CONF:DLIS?",true,ct);}catch{}}
-   found.Add(new(board,primary,secondary,idn,kind,config));}}
- return found;}
- static string Classify(string? idn,int secondary){string s=idn??"";if(s.Contains("E1406",StringComparison.OrdinalIgnoreCase))return "e1406a-controller";if(s.Contains("RACAL",StringComparison.OrdinalIgnoreCase)||s.Contains("3271",StringComparison.OrdinalIgnoreCase))return "module-endpoint";if(s.Contains("SWITCH",StringComparison.OrdinalIgnoreCase))return "switchbox";return secondary==0?"gpib-device":"instrument-endpoint";}
+public static class GpibDiscovery
+{
+    private static readonly Regex SwitchSadRegex = new(
+        @"SWITCH\s+INSTALLED\s+AT\s+SECONDARY\s+ADDR\s+(?<sad>\d+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    public static async Task<IReadOnlyList<GpibMainframeResult>> ScanAsync(
+        int boardIndex,
+        int timeoutCode,
+        CancellationToken cancellationToken)
+    {
+        var found = new List<GpibMainframeResult>();
+        for (int primary = 0; primary <= 30; primary++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                using var system = new LinuxGpib(new(boardIndex, primary, 0, timeoutCode));
+                string? identification = await system.ExecuteAsync("*IDN?", true, cancellationToken);
+                if (identification is null || !identification.Contains("E1406", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string rawConfiguration = await system.ExecuteAsync("VXI:CONF:DLIS?", true, cancellationToken) ?? string.Empty;
+                IReadOnlyList<VxiDeviceRecord> devices = DlisParser.Parse(rawConfiguration);
+                int? switchSecondaryAddress = ParseSwitchSecondaryAddress(rawConfiguration);
+                string? switchIdentification = null;
+                string? switchError = null;
+
+                if (switchSecondaryAddress is int sad)
+                {
+                    try
+                    {
+                        using var switchbox = new LinuxGpib(new(boardIndex, primary, sad, timeoutCode));
+                        switchIdentification = await switchbox.ExecuteAsync("*IDN?", true, cancellationToken);
+                        switchError = await switchbox.ExecuteAsync("SYST:ERR?", true, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        switchError = ex.Message;
+                    }
+                }
+
+                found.Add(new(
+                    boardIndex,
+                    primary,
+                    identification,
+                    switchSecondaryAddress,
+                    switchIdentification,
+                    switchError,
+                    rawConfiguration,
+                    devices));
+            }
+            catch
+            {
+                // A failed open/query means this PAD/SAD0 is not an E1406A endpoint.
+            }
+        }
+
+        return found;
+    }
+
+    private static int? ParseSwitchSecondaryAddress(string rawConfiguration)
+    {
+        Match match = SwitchSadRegex.Match(rawConfiguration);
+        return match.Success && int.TryParse(match.Groups["sad"].Value, out int sad) ? sad : null;
+    }
 }
-public sealed record GpibProbeResult(int BoardIndex,int PrimaryAddress,int SecondaryAddress,string? Identification,string Kind,string? RawConfiguration);
+
+public static class DlisParser
+{
+    public static IReadOnlyList<VxiDeviceRecord> Parse(string response)
+    {
+        var result = new List<VxiDeviceRecord>();
+        foreach (string rawRecord in SplitRecords(response))
+        {
+            IReadOnlyList<string> fields = SplitCsv(rawRecord);
+            if (fields.Count < 14) continue;
+
+            result.Add(new VxiDeviceRecord(
+                ParseInt(fields[0]),
+                ParseInt(fields[1]),
+                ParseInt(fields[2]),
+                ParseInt(fields[3]),
+                ParseNullableInt(fields[4]),
+                ParseInt(fields[5]),
+                fields[6],
+                fields[7],
+                fields[8],
+                fields[9],
+                fields[10],
+                Unquote(fields.ElementAtOrDefault(14) ?? fields[^1])));
+        }
+        return result;
+    }
+
+    private static IEnumerable<string> SplitRecords(string value)
+    {
+        var current = new StringBuilder();
+        bool quoted = false;
+        foreach (char c in value)
+        {
+            if (c == '"') quoted = !quoted;
+            if (c == ';' && !quoted)
+            {
+                if (current.Length > 0) yield return current.ToString();
+                current.Clear();
+            }
+            else current.Append(c);
+        }
+        if (current.Length > 0) yield return current.ToString();
+    }
+
+    private static IReadOnlyList<string> SplitCsv(string value)
+    {
+        var fields = new List<string>();
+        var current = new StringBuilder();
+        bool quoted = false;
+        foreach (char c in value)
+        {
+            if (c == '"') quoted = !quoted;
+            if (c == ',' && !quoted)
+            {
+                fields.Add(current.ToString().Trim());
+                current.Clear();
+            }
+            else current.Append(c);
+        }
+        fields.Add(current.ToString().Trim());
+        return fields;
+    }
+
+    private static int ParseInt(string value) => int.TryParse(value.Trim().TrimStart('+'), out int number) ? number : 0;
+    private static int? ParseNullableInt(string value) => int.TryParse(value.Trim().TrimStart('+'), out int number) && number >= 0 ? number : null;
+    private static string Unquote(string value) => value.Trim().Trim('"');
+}
+
+public sealed record GpibMainframeResult(
+    int BoardIndex,
+    int PrimaryAddress,
+    string Identification,
+    int? SwitchSecondaryAddress,
+    string? SwitchIdentification,
+    string? SwitchError,
+    string RawConfiguration,
+    IReadOnlyList<VxiDeviceRecord> Devices);
+
+public sealed record VxiDeviceRecord(
+    int LogicalAddress,
+    int CommanderLogicalAddress,
+    int ManufacturerId,
+    int DeviceType,
+    int? PhysicalSlot,
+    int Mainframe,
+    string DeviceClass,
+    string AddressSpace,
+    string Offset,
+    string Size,
+    string Status,
+    string Description);

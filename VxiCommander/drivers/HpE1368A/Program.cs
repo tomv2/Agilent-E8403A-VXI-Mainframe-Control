@@ -1,7 +1,40 @@
-using Vxi.DriverSdk; using Vxi.Protocol; using System.Text.Json;
+using System.Text.Json;
+using Vxi.DriverSdk;
+using Vxi.Protocol;
+
 return await DriverHost.RunAsync(new Driver());
-sealed class Driver:IVxiDriver {
- public DriverIdentity Identity=>new("hp.e1368a","HP E1368A Microwave Switch","1.0.0",["E1368A"]);
- public IReadOnlyList<OperationDescriptor> Describe(InstrumentInstance i)=>[new("select-port","Select SPDT port",[new("switch","integer",true,1,3),new("port","integer",true,1,2)])];
- public IReadOnlyList<GeneratedCommand> Generate(InstrumentInstance i,string op,IReadOnlyDictionary<string,JsonElement> p){if(op!="select-port")throw new ArgumentException("Unknown operation");int card=i.Address.SwitchboxCardNumber??throw new ArgumentException("switchboxCardNumber required");int sw=Args.Int(p,"switch",1,3),port=Args.Int(p,"port",1,2);string addr=$"{card:D2}{sw:D2}";string cmd=port==2?$"CLOS (@{addr})":$"OPEN (@{addr})";return [new(cmd,Category:"relay-switch",DelayAfterMilliseconds:20)];}
+
+sealed class Driver : IVxiDriver
+{
+    public DriverIdentity Identity => new("hp.e1368a", "HP E1368A Microwave Switch", "1.1.0", ["E1368A"]);
+
+    public IReadOnlyList<OperationDescriptor> Describe(InstrumentInstance instrument) =>
+    [
+        new("query-channel", "Query channel closure", ChannelParameters(), "Software readback only."),
+        new("close-channel", "Close channel", ChannelParameters()),
+        new("open-channel", "Open channel", ChannelParameters()),
+    ];
+
+    public IReadOnlyList<GeneratedCommand> Generate(
+        InstrumentInstance instrument,
+        string operation,
+        IReadOnlyDictionary<string, JsonElement> parameters)
+    {
+        int card = instrument.Address.SwitchboxCardNumber ?? throw new ArgumentException("switchboxCardNumber required");
+        int channel = Args.Int(parameters, "channel", 0, 99);
+        string address = $"{card:D2}{channel:D2}";
+
+        return operation switch
+        {
+            "query-channel" => [new($"CLOS? (@{address})", true, "relay-query")],
+            "close-channel" => [new($"CLOS (@{address})", false, "relay-switch", 20)],
+            "open-channel" => [new($"OPEN (@{address})", false, "relay-switch", 20)],
+            _ => throw new ArgumentException("Unknown operation"),
+        };
+    }
+
+    private static IReadOnlyList<ParameterDescriptor> ChannelParameters() =>
+    [
+        new("channel", "integer", true, 0, 99, Description: "Use the channel number from the E1368A switch/relay wiring map."),
+    ];
 }

@@ -1,6 +1,7 @@
 [Unit]
 Description=VXI Commander Broker
-After=network.target
+After=network.target vxi-gpib-init.service
+Requires=vxi-gpib-init.service
 
 [Service]
 Type=simple
@@ -19,7 +20,7 @@ ProtectHome=true
 ReadWritePaths=/run/vxi-controller /var/log/vxi-controller /var/lib/vxi-controller
 RestrictAddressFamilies=AF_UNIX AF_INET
 LockPersonality=true
-MemoryDenyWriteExecute=true
+MemoryDenyWriteExecute=false
 
 [Install]
 WantedBy=multi-user.target

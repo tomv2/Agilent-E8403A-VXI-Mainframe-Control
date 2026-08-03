@@ -1,7 +1,72 @@
-using System.Net.Sockets;using System.Text;using System.Text.Json;using Vxi.Protocol;
-string socket=Environment.GetEnvironmentVariable("VXI_SOCKET")??"/run/vxi-controller/broker.sock";if(args.Length==0){Help();return 2;}string cmd=args[0];BrokerRequest req;
-if(cmd is "status" or "drivers" or "devices" or "discover")req=new(cmd);
-else if(cmd=="describe"&&args.Length>=2)req=new("describe",args[1]);
-else if(cmd=="operate"&&args.Length>=3){var p=new Dictionary<string,JsonElement>();bool dry=true;for(int i=3;i<args.Length;i++){if(args[i]=="--live"){dry=false;continue;}if(args[i].StartsWith("--")&&i+1<args.Length){string k=args[i][2..];using var doc=JsonDocument.Parse(ParseValue(args[++i]));p[k]=doc.RootElement.Clone();}}req=new("operate",args[1],args[2],p,dry);}else{Help();return 2;}
-using var s=new Socket(AddressFamily.Unix,SocketType.Stream,ProtocolType.Unspecified);await s.ConnectAsync(new UnixDomainSocketEndPoint(socket));await using var ns=new NetworkStream(s,true);using var w=new StreamWriter(ns,new UTF8Encoding(false),leaveOpen:true){AutoFlush=true};using var r=new StreamReader(ns,Encoding.UTF8);await w.WriteLineAsync(JsonSerializer.Serialize(req,JsonDefaults.Options));string? line=await r.ReadLineAsync();if(line is null)return 1;using var outDoc=JsonDocument.Parse(line);Console.WriteLine(JsonSerializer.Serialize(outDoc.RootElement,new JsonSerializerOptions{WriteIndented=true}));return outDoc.RootElement.GetProperty("success").GetBoolean()?0:1;
-static string ParseValue(string v){if(int.TryParse(v,out _)||double.TryParse(v,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out _)||v is "true" or "false" or "null")return v;return JsonSerializer.Serialize(v);}static void Help()=>Console.WriteLine("vxi status | drivers | devices | discover | describe <id> | operate <id> <operation> [--name value] [--live]");
+using System.Net.Sockets;
+using System.Text;
+using System.Text.Json;
+using Vxi.Protocol;
+
+const string LiveConfirmationPhrase = "SWITCH RELAY";
+string socketPath = Environment.GetEnvironmentVariable("VXI_SOCKET") ?? "/run/vxi-controller/broker.sock";
+if (args.Length == 0) { Help(); return 2; }
+
+string command = args[0];
+BrokerRequest request;
+if (command is "status" or "drivers" or "devices" or "discover")
+{
+    request = new(command);
+}
+else if (command == "describe" && args.Length >= 2)
+{
+    request = new("describe", args[1]);
+}
+else if (command == "operate" && args.Length >= 3)
+{
+    var parameters = new Dictionary<string, JsonElement>();
+    bool dryRun = true;
+    string? confirmation = null;
+    for (int index = 3; index < args.Length; index++)
+    {
+        if (args[index] == "--live") { dryRun = false; continue; }
+        if (args[index] == "--confirm" && index + 1 < args.Length) { confirmation = args[++index]; continue; }
+        if (args[index].StartsWith("--") && index + 1 < args.Length)
+        {
+            string name = args[index][2..];
+            using JsonDocument document = JsonDocument.Parse(ParseValue(args[++index]));
+            parameters[name] = document.RootElement.Clone();
+        }
+    }
+
+    if (!dryRun && !string.Equals(confirmation, LiveConfirmationPhrase, StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine($"Live operation requires: --confirm \"{LiveConfirmationPhrase}\"");
+        return 2;
+    }
+    request = new("operate", args[1], args[2], parameters, dryRun);
+}
+else
+{
+    Help();
+    return 2;
+}
+
+using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath));
+await using var stream = new NetworkStream(socket, ownsSocket: true);
+using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+using var reader = new StreamReader(stream, Encoding.UTF8);
+await writer.WriteLineAsync(JsonSerializer.Serialize(request, JsonDefaults.Options));
+string? line = await reader.ReadLineAsync();
+if (line is null) return 1;
+using JsonDocument output = JsonDocument.Parse(line);
+Console.WriteLine(JsonSerializer.Serialize(output.RootElement, new JsonSerializerOptions { WriteIndented = true }));
+return output.RootElement.GetProperty("success").GetBoolean() ? 0 : 1;
+
+static string ParseValue(string value)
+{
+    if (int.TryParse(value, out _) ||
+        double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _) ||
+        value is "true" or "false" or "null") return value;
+    return JsonSerializer.Serialize(value);
+}
+
+static void Help() => Console.WriteLine(
+    "vxi status | drivers | devices | discover | describe <id> | " +
+    "operate <id> <operation> [--name value] [--live --confirm \"SWITCH RELAY\"]");

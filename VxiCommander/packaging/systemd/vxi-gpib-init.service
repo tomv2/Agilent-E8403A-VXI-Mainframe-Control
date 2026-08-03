@@ -1,0 +1,14 @@
+[Unit]
+Description=Configure Linux-GPIB adapter for VXI Commander
+After=systemd-modules-load.service
+Before=vxi-broker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/modprobe gpib_common
+ExecStart=/usr/sbin/modprobe ni_usb_gpib
+ExecStart=/usr/sbin/gpib_config
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
