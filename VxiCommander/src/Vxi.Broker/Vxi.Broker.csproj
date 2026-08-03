@@ -1,1 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>vxi-broker</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../Vxi.Protocol/Vxi.Protocol.csproj"/><ProjectReference Include="../Vxi.Core/Vxi.Core.csproj"/><ProjectReference Include="../Vxi.Transport.Gpib/Vxi.Transport.Gpib.csproj"/></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>vxi-broker</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Vxi.Protocol/Vxi.Protocol.csproj"/>
+    <ProjectReference Include="../Vxi.Core/Vxi.Core.csproj"/>
+    <ProjectReference Include="../Vxi.Transport.Gpib/Vxi.Transport.Gpib.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="web/**/*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

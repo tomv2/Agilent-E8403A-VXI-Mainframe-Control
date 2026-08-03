@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VXI Commander</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="card hero">
+      <div>
+        <h1>VXI Commander</h1>
+        <p>Discover modules, assign a driver once, then use commands supplied by that driver.</p>
+      </div>
+      <label class="live-toggle">
+        <input id="liveMode" type="checkbox">
+        <span>Live commands</span>
+      </label>
+    </header>
+
+    <nav class="card toolbar">
+      <button id="discoverButton" class="primary">Discover</button>
+      <button id="saveButton">Save assignments</button>
+      <span id="connectionStatus" class="status">Loading…</span>
+    </nav>
+
+    <div id="notice" class="notice" hidden></div>
+
+    <section class="layout">
+      <aside class="card hardware-panel">
+        <h2>Hardware</h2>
+        <div id="endpoints" class="endpoint-list muted">Not scanned.</div>
+        <div id="modules" class="module-list"></div>
+        <button id="manualButton" class="secondary">Add manual module</button>
+      </aside>
+
+      <section class="card command-panel">
+        <div class="command-heading">
+          <div>
+            <h2 id="selectedTitle">Commands</h2>
+            <p id="selectedInfo" class="muted">Select a module.</p>
+          </div>
+        </div>
+
+        <div id="commands"></div>
+
+        <h3>Output</h3>
+        <pre id="output">Ready.</pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

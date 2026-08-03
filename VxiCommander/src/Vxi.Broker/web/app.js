@@ -4,6 +4,7 @@ let inventory = [];
 let discovery = [];
 let selectedId = null;
 
+const visualState = new Map();
 const $ = selector => document.querySelector(selector);
 
 function escapeHtml(value) {
@@ -193,25 +194,18 @@ function renderModules() {
               value="${item.address.primaryAddress} / ${item.address.secondaryAddress}">
           </div>
         </div>
-        ${item.driverId === "hp.e1472a" ? `
-        <p class="muted">
-          Module 0 is the E1472A in this slot. Module 1 is the first E1473A
-          expander in the following slot; module 2 is a second expander.
-        </p>` : ""}
         <button data-remove class="danger">Remove</button>
       </details>`;
 
     element.addEventListener("click", event => {
       if (event.target.matches("select,input,button,summary"))
         return;
-
       selectModule(item.id);
     });
 
     element.querySelector("[data-driver]").addEventListener("change", event => {
       item.driverId = event.target.value;
       renderModules();
-
       if (selectedId === item.id)
         selectModule(item.id);
     });
@@ -228,19 +222,16 @@ function renderModules() {
       item.address.physicalSlot =
         event.target.value === "" ? null : Number(event.target.value);
       renderModules();
-
       if (selectedId === item.id)
         selectModule(item.id);
     });
 
     element.querySelector("[data-remove]").addEventListener("click", () => {
       inventory = inventory.filter(candidate => candidate.id !== item.id);
-
       if (selectedId === item.id) {
         selectedId = null;
         clearCommands();
       }
-
       renderModules();
     });
 
@@ -319,7 +310,13 @@ async function selectModule(id) {
       })
     });
 
-    renderOperations(item, operations);
+    if (item.driverId === "hp.e1368a") {
+      renderE1368Panel(item, operations);
+    } else if (item.driverId === "hp.e1472a") {
+      renderE1472Panel(item, operations);
+    } else {
+      renderGenericOperations(item, operations);
+    }
   } catch (error) {
     $("#output").textContent =
       "Save assignments before loading commands.\n\n" + error.message;
@@ -330,7 +327,265 @@ function clearCommands() {
   $("#commands").innerHTML = "";
 }
 
-function renderOperations(item, operations) {
+function operationById(operations, id) {
+  const operation = operations.find(candidate => candidate.id === id);
+  if (!operation)
+    throw new Error(`Driver operation “${id}” is not available.`);
+  return operation;
+}
+
+function stateFor(itemId) {
+  if (!visualState.has(itemId)) {
+    visualState.set(itemId, {
+      relays: [null, null, null],
+      mux: {}
+    });
+  }
+  return visualState.get(itemId);
+}
+
+function renderE1368Panel(item, operations) {
+  const host = $("#commands");
+  host.innerHTML = `
+    <section class="front-panel e1368-panel">
+      <div class="front-panel-title">
+        <div>
+          <h3>HP E1368A microwave switches</h3>
+          <p>Click either contact to move the relay pole.</p>
+        </div>
+        <span class="badge">3 × SPDT</span>
+      </div>
+      <div class="relay-grid"></div>
+    </section>`;
+
+  const grid = host.querySelector(".relay-grid");
+  const state = stateFor(item.id);
+
+  for (let relay = 0; relay < 3; relay++) {
+    const card = document.createElement("article");
+    card.className = "relay-card";
+    card.dataset.relay = relay;
+    card.innerHTML = relaySvg(relay, state.relays[relay]);
+
+    card.querySelectorAll("[data-position]").forEach(contact => {
+      contact.addEventListener("click", async () => {
+        const position = contact.dataset.position;
+        const operation = position === "port1"
+          ? operationById(operations, "open")
+          : operationById(operations, "close");
+
+        const result = await executeOperation(
+          item,
+          operation,
+          { switch: relay });
+
+        if (result !== null) {
+          state.relays[relay] = position;
+          card.innerHTML = relaySvg(relay, position);
+          bindRelayCardAgain(card, item, operations, relay);
+        }
+      });
+    });
+
+    grid.appendChild(card);
+  }
+}
+
+function bindRelayCardAgain(card, item, operations, relay) {
+  card.querySelectorAll("[data-position]").forEach(contact => {
+    contact.addEventListener("click", async () => {
+      const position = contact.dataset.position;
+      const operation = position === "port1"
+        ? operationById(operations, "open")
+        : operationById(operations, "close");
+
+      const result = await executeOperation(
+        item,
+        operation,
+        { switch: relay });
+
+      if (result !== null) {
+        stateFor(item.id).relays[relay] = position;
+        card.innerHTML = relaySvg(relay, position);
+        bindRelayCardAgain(card, item, operations, relay);
+      }
+    });
+  });
+}
+
+function relaySvg(relay, position) {
+  const poleEnd = position === "port2"
+    ? { x: 157, y: 92 }
+    : { x: 157, y: 38 };
+
+  return `
+    <div class="relay-card-header">
+      <strong>Switch ${String.fromCharCode(65 + relay)}</strong>
+      <span class="relay-state">${position ? position.toUpperCase() : "UNKNOWN"}</span>
+    </div>
+    <svg viewBox="0 0 220 130" class="relay-svg" role="img"
+      aria-label="SPDT relay switch ${relay}">
+      <rect x="1" y="1" width="218" height="128" rx="12"
+        class="panel-outline"/>
+      <circle cx="50" cy="65" r="10" class="port common-port"/>
+      <text x="50" y="91" text-anchor="middle">COMMON</text>
+
+      <g data-position="port1" class="clickable-contact">
+        <circle cx="170" cy="38" r="11"
+          class="port ${position === "port1" ? "active-port" : ""}"/>
+        <text x="170" y="20" text-anchor="middle">PORT 1</text>
+      </g>
+
+      <g data-position="port2" class="clickable-contact">
+        <circle cx="170" cy="92" r="11"
+          class="port ${position === "port2" ? "active-port" : ""}"/>
+        <text x="170" y="119" text-anchor="middle">PORT 2</text>
+      </g>
+
+      <line x1="60" y1="65" x2="${poleEnd.x}" y2="${poleEnd.y}"
+        class="relay-pole ${position ? "energised" : ""}"/>
+      <circle cx="60" cy="65" r="5" class="pivot"/>
+    </svg>`;
+}
+
+function renderE1472Panel(item, operations) {
+  const host = $("#commands");
+  const baseSlot = item.address.physicalSlot;
+
+  host.innerHTML = `
+    <section class="front-panel e1472-panel">
+      <div class="front-panel-title">
+        <div>
+          <h3>HP E1472A / E1473A multiplexer</h3>
+          <p>Select a module, then click one of the four input ports in a bank.</p>
+        </div>
+        <span class="badge">6 × 1-to-4 banks</span>
+      </div>
+
+      <div class="module-tabs">
+        <button class="module-tab active" data-module="0">
+          E1472A base${baseSlot == null ? "" : ` · slot ${baseSlot}`}
+        </button>
+        <button class="module-tab" data-module="1">
+          E1473A expander 1${baseSlot == null ? "" : ` · slot ${baseSlot + 1}`}
+        </button>
+        <button class="module-tab" data-module="2">
+          E1473A expander 2${baseSlot == null ? "" : ` · slot ${baseSlot + 2}`}
+        </button>
+      </div>
+
+      <div class="mux-front-panel"></div>
+    </section>`;
+
+  let selectedModule = 0;
+  const panel = host.querySelector(".mux-front-panel");
+
+  const render = () => {
+    panel.innerHTML = "";
+    for (let bank = 0; bank < 6; bank++)
+      panel.appendChild(createMuxBank(item, operations, selectedModule, bank));
+  };
+
+  host.querySelectorAll("[data-module]").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedModule = Number(button.dataset.module);
+      host.querySelectorAll("[data-module]")
+        .forEach(candidate => candidate.classList.remove("active"));
+      button.classList.add("active");
+      render();
+    });
+  });
+
+  render();
+}
+
+function createMuxBank(item, operations, module, bank) {
+  const key = `${module}:${bank}`;
+  const state = stateFor(item.id);
+  const selectedInput = state.mux[key] ?? null;
+
+  const bankElement = document.createElement("article");
+  bankElement.className = "mux-bank";
+  bankElement.innerHTML = `
+    <div class="mux-bank-number">BANK ${bank}</div>
+    <div class="mux-common">
+      <span class="port-dot common"></span>
+      <span>COMMON</span>
+    </div>
+    <div class="mux-route">
+      <div class="mux-spine"></div>
+      <div class="mux-pole ${selectedInput !== null ? "connected" : ""}"
+        style="--selected-index:${selectedInput ?? 0}"></div>
+    </div>
+    <div class="mux-inputs"></div>
+    <button class="read-bank">Read bank</button>`;
+
+  const inputHost = bankElement.querySelector(".mux-inputs");
+
+  for (let input = 0; input < 4; input++) {
+    const channel = bank * 10 + input;
+    const button = document.createElement("button");
+    button.className =
+      "mux-port" + (selectedInput === input ? " selected" : "");
+    button.innerHTML = `
+      <span class="port-dot"></span>
+      <span>${String(channel).padStart(2, "0")}</span>`;
+    button.title = `Module ${module}, bank ${bank}, input ${input}`;
+
+    button.addEventListener("click", async () => {
+      const operation = operationById(operations, "select");
+      const result = await executeOperation(
+        item,
+        operation,
+        { module, channel });
+
+      if (result !== null) {
+        state.mux[key] = input;
+        const replacement = createMuxBank(item, operations, module, bank);
+        bankElement.replaceWith(replacement);
+      }
+    });
+
+    inputHost.appendChild(button);
+  }
+
+  bankElement.querySelector(".read-bank").addEventListener("click", async () => {
+    const query = operationById(operations, "query");
+    let active = null;
+    const readings = [];
+
+    for (let input = 0; input < 4; input++) {
+      const channel = bank * 10 + input;
+      const result = await executeOperation(
+        item,
+        query,
+        { module, channel },
+        false);
+
+      const response = extractInstrumentResponse(result);
+      readings.push(`${String(channel).padStart(2, "0")}: ${response ?? "?"}`);
+      if (String(response).trim() === "1")
+        active = input;
+    }
+
+    state.mux[key] = active;
+    $("#output").textContent =
+      `Module ${module}, bank ${bank}\n` + readings.join("\n");
+
+    const replacement = createMuxBank(item, operations, module, bank);
+    bankElement.replaceWith(replacement);
+  });
+
+  return bankElement;
+}
+
+function extractInstrumentResponse(result) {
+  if (!Array.isArray(result) || !result.length)
+    return null;
+  return result[result.length - 1]?.response ?? null;
+}
+
+function renderGenericOperations(item, operations) {
   const host = $("#commands");
   host.innerHTML = "";
 
@@ -350,147 +605,62 @@ function renderOperations(item, operations) {
 
     const fields = section.querySelector("[data-fields]");
 
-    if (item.driverId === "hp.e1472a") {
-      renderE1472Fields(item, fields);
-    } else if (item.driverId === "hp.e1368a") {
-      renderE1368Fields(fields);
-    } else {
-      renderGenericFields(fields, operation);
+    for (const parameter of operation.parameters || []) {
+      let input;
+
+      if (parameter.choices?.length) {
+        input = document.createElement("select");
+        for (const choice of parameter.choices)
+          input.add(new Option(choice, choice));
+      } else {
+        input = document.createElement("input");
+        input.type =
+          parameter.type === "integer" || parameter.type === "number"
+            ? "number"
+            : "text";
+
+        if (parameter.minimum != null) {
+          input.min = parameter.minimum;
+          input.value = parameter.minimum;
+        }
+
+        if (parameter.maximum != null)
+          input.max = parameter.maximum;
+      }
+
+      input.dataset.parameter = parameter.name;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const label = document.createElement("label");
+      label.textContent =
+        parameter.name + (parameter.required ? " *" : "");
+      wrapper.append(label, input);
+      fields.appendChild(wrapper);
     }
 
-    section.querySelector("[data-run]").addEventListener("click", () =>
-      runOperation(item, operation, section));
+    section.querySelector("[data-run]").addEventListener("click", async () => {
+      const parameters = {};
+      section.querySelectorAll("[data-parameter]").forEach(input => {
+        const value = input.value;
+        parameters[input.dataset.parameter] =
+          input.type === "number" ||
+          /^-?\d+$/.test(value)
+            ? Number(value)
+            : value;
+      });
+      await executeOperation(item, operation, parameters);
+    });
 
     host.appendChild(section);
   }
 }
 
-
-function addField(host, labelText, input, helpText = "") {
-  const wrapper = document.createElement("div");
-  wrapper.className = "field";
-
-  const label = document.createElement("label");
-  label.textContent = labelText;
-  wrapper.appendChild(label);
-  wrapper.appendChild(input);
-
-  if (helpText) {
-    const help = document.createElement("div");
-    help.className = "muted";
-    help.textContent = helpText;
-    wrapper.appendChild(help);
-  }
-
-  host.appendChild(wrapper);
-}
-
-function renderE1472Fields(item, host) {
-  const baseSlot = item.address.physicalSlot;
-
-  const module = document.createElement("select");
-  module.dataset.parameter = "module";
-  module.add(new Option(
-    `E1472A base${baseSlot == null ? "" : ` — slot ${baseSlot}`}`,
-    "0"));
-  module.add(new Option(
-    `E1473A expander 1${baseSlot == null ? "" : ` — slot ${baseSlot + 1}`}`,
-    "1"));
-  module.add(new Option(
-    `E1473A expander 2${baseSlot == null ? "" : ` — slot ${baseSlot + 2}`}`,
-    "2"));
-
-  const bank = document.createElement("select");
-  for (let value = 0; value <= 5; value++)
-    bank.add(new Option(`Bank ${value}`, String(value)));
-
-  const input = document.createElement("select");
-  for (let value = 0; value <= 3; value++)
-    input.add(new Option(`Input ${value}`, String(value)));
-
-  const channel = document.createElement("input");
-  channel.type = "hidden";
-  channel.dataset.parameter = "channel";
-
-  const updateChannel = () => {
-    channel.value = String(Number(bank.value) * 10 + Number(input.value));
-  };
-
-  bank.addEventListener("change", updateChannel);
-  input.addEventListener("change", updateChannel);
-  updateChannel();
-
-  addField(
-    host,
-    "Module",
-    module,
-    "Module 0 is the E1472A base. Module 1 is the first E1473A expander.");
-  addField(host, "Bank", bank);
-  addField(host, "Input", input);
-  host.appendChild(channel);
-}
-
-function renderE1368Fields(host) {
-  const input = document.createElement("select");
-  input.dataset.parameter = "switch";
-
-  input.add(new Option("Switch A (00)", "0"));
-  input.add(new Option("Switch B (01)", "1"));
-  input.add(new Option("Switch C (02)", "2"));
-
-  addField(host, "RF switch", input);
-}
-
-function renderGenericFields(host, operation) {
-  for (const parameter of operation.parameters || []) {
-    let input;
-
-    if (parameter.choices?.length) {
-      input = document.createElement("select");
-      for (const choice of parameter.choices)
-        input.add(new Option(choice, choice));
-    } else {
-      input = document.createElement("input");
-      input.type =
-        parameter.type === "integer" || parameter.type === "number"
-          ? "number"
-          : "text";
-
-      if (parameter.minimum !== null &&
-          parameter.minimum !== undefined) {
-        input.min = parameter.minimum;
-        input.value = parameter.minimum;
-      }
-
-      if (parameter.maximum !== null &&
-          parameter.maximum !== undefined) {
-        input.max = parameter.maximum;
-      }
-    }
-
-    input.dataset.parameter = parameter.name;
-
-    addField(
-      host,
-      parameter.name + (parameter.required ? " *" : ""),
-      input,
-      parameter.description || "");
-  }
-}
-
-async function runOperation(item, operation, section) {
-  const parameters = {};
-
-  section.querySelectorAll("[data-parameter]").forEach(input => {
-    const value = input.value;
-    const isNumeric =
-      input.type === "number" ||
-      input.type === "hidden" ||
-      (input.tagName === "SELECT" && /^-?\d+$/.test(value));
-
-    parameters[input.dataset.parameter] =
-      isNumeric ? Number(value) : value;
-  });
+async function executeOperation(
+  item,
+  operation,
+  parameters,
+  updateOutput = true) {
 
   const dryRun = !$("#liveMode").checked;
 
@@ -498,7 +668,7 @@ async function runOperation(item, operation, section) {
       !confirm(
         `Run LIVE operation “${operation.name}” on ` +
         `${item.friendlyName || item.id}?`)) {
-    return;
+    return null;
   }
 
   try {
@@ -514,9 +684,13 @@ async function runOperation(item, operation, section) {
       })
     });
 
-    $("#output").textContent = JSON.stringify(result, null, 2);
+    if (updateOutput)
+      $("#output").textContent = JSON.stringify(result, null, 2);
+
+    return result;
   } catch (error) {
     $("#output").textContent = error.message;
+    return null;
   }
 }
 

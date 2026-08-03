@@ -1,12 +1,11 @@
 {
   "id": "hp.e1472a",
-  "name": "HP E1472A/E1474A RF Multiplexer",
+  "name": "HP E1472A RF Multiplexer",
   "version": "1.2.0",
   "protocolVersion": 1,
   "executable": "vxi-driver-hpe1472a",
   "supportedModels": [
-    "E1472A",
-    "E1474A"
+    "E1472A"
   ],
   "permissions": {
     "network": false,

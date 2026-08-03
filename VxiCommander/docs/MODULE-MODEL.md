@@ -15,10 +15,9 @@ The software exposes four operations:
 
 `cc` is the switchbox card number and `nn` is `00` through `02`.
 
-## HP E1472A and E1474A
+## HP E1472A
 
-The E1472A is the 50-ohm RF multiplexer. The E1474A is the functionally
-equivalent 75-ohm version. Both contain six independent 1x4 banks.
+The E1472A is the 50-ohm RF multiplexer and contains six independent 1x4 banks.
 
 Valid local channels are:
 
@@ -32,16 +31,16 @@ Valid local channels are:
 Only one channel in each bank can be connected to its common at a time.
 At power-on/reset, channel `n0` is connected for each bank.
 
-## HP E1473A and E1475A expanders
+## HP E1473A expanders
 
-The E1473A is the 50-ohm expander and the E1475A is the 75-ohm expander.
+The E1473A is the 50-ohm expander.
 They are not independently addressed switchbox instruments.
 
-A base E1472A or E1474A controls up to two expanders:
+A base E1472A controls up to two E1473A expanders:
 
-- module `00`: base E1472A/E1474A
-- module `01`: first E1473A/E1475A expander
-- module `02`: second E1473A/E1475A expander
+- module `00`: base E1472A
+- module `01`: first E1473A expander
+- module `02`: second E1473A expander
 
 The multiplexer driver therefore supports module numbers 0 through 2.
 Do not assign the E1472A driver directly to a separately discovered

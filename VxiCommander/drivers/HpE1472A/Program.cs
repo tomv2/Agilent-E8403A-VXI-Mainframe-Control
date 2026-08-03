@@ -8,9 +8,9 @@ sealed class Driver : IVxiDriver
 {
     public DriverIdentity Identity => new(
         "hp.e1472a",
-        "HP E1472A/E1474A RF Multiplexer",
+        "HP E1472A RF Multiplexer",
         "1.2.0",
-        ["E1472A", "E1474A"]);
+        ["E1472A"]);
 
     public IReadOnlyList<OperationDescriptor> Describe(InstrumentInstance instrument) =>
     [
@@ -25,7 +25,7 @@ sealed class Driver : IVxiDriver
                     0,
                     2,
                     Description:
-                        "0 = base E1472A/E1474A; 1 or 2 = attached E1473A/E1475A expander."),
+                        "0 = base E1472A; 1 or 2 = attached E1473A expander."),
                 new(
                     "channel",
                     "integer",
