@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
+
+if systemctl list-unit-files vxi-broker.service >/dev/null 2>&1; then
+    systemctl stop vxi-broker.service || true
+fi
+uo pipefail
 [[ $EUID -eq 0 ]] || { echo "Run with sudo"; exit 1; }
 REL="${1:-./release}"; OPERATOR="${SUDO_USER:-pi}"
 getent group vxi-operators >/dev/null || groupadd --system vxi-operators
@@ -24,3 +29,19 @@ systemctl daemon-reload
 udevadm control --reload-rules
 echo "Installed. Reconnect SSH, then: sudo systemctl enable --now vxi-broker"
 echo "Web UI: ssh -L 8080:127.0.0.1:8080 $OPERATOR@<pi-address>"
+
+SERVICE_USER=$(systemctl show vxi-broker -p User --value)
+SERVICE_GROUP=$(systemctl show vxi-broker -p Group --value)
+
+chown root:"$SERVICE_GROUP" /etc/vxi-controller
+chmod 0750 /etc/vxi-controller
+
+chown root:"$SERVICE_GROUP" /etc/vxi-controller/appsettings.json
+chmod 0640 /etc/vxi-controller/appsettings.json
+
+install -d \
+  -o "$SERVICE_USER" \
+  -g "$SERVICE_GROUP" \
+  -m 0750 \
+  /var/lib/vxi-controller \
+  /var/log/vxi-controller
