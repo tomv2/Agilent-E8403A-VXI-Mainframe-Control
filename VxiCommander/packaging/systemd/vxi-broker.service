@@ -1,0 +1,25 @@
+[Unit]
+Description=VXI Commander Broker
+After=network.target
+
+[Service]
+Type=simple
+User=vxi-broker
+Group=vxi-operators
+Environment=VXI_CONFIG=/etc/vxi-controller/appsettings.json
+ExecStart=/opt/vxi-controller/bin/broker/vxi-broker
+Restart=on-failure
+RuntimeDirectory=vxi-controller
+RuntimeDirectoryMode=0770
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/vxi-controller /var/log/vxi-controller /var/lib/vxi-controller
+RestrictAddressFamilies=AF_UNIX AF_INET
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

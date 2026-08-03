@@ -1,0 +1,15 @@
+{
+  "id": "racal.3271",
+  "name": "Racal 3271 Controller",
+  "version": "1.0.0",
+  "protocolVersion": 1,
+  "executable": "vxi-driver-racal3271",
+  "supportedModels": [
+    "3271"
+  ],
+  "permissions": {
+    "network": false,
+    "hardware": false,
+    "filesystem": "none"
+  }
+}

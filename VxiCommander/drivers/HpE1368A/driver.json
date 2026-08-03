@@ -1,0 +1,15 @@
+{
+  "id": "hp.e1368a",
+  "name": "HP E1368A Microwave Switch",
+  "version": "1.0.0",
+  "protocolVersion": 1,
+  "executable": "vxi-driver-hpe1368a",
+  "supportedModels": [
+    "E1368A"
+  ],
+  "permissions": {
+    "network": false,
+    "hardware": false,
+    "filesystem": "none"
+  }
+}

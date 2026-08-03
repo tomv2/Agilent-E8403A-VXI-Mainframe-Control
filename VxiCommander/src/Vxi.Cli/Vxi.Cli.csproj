@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>vxi</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../Vxi.Protocol/Vxi.Protocol.csproj"/></ItemGroup></Project>
