@@ -1,1 +1,0 @@
-KERNEL=="gpib[0-9]*", GROUP="vxi-operators", MODE="0660"

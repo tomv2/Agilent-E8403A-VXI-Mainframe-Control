@@ -1,1 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>vxi-driver-hpe1368a</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../../src/Vxi.DriverSdk/Vxi.DriverSdk.csproj" /></ItemGroup></Project>

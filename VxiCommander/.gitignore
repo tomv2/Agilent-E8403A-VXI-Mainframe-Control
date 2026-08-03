@@ -1,6 +1,0 @@
-bin/
-obj/
-release/
-*.key
-*.sig
-.env
