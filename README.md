@@ -14,7 +14,7 @@ Agilent E8403A VXI mainframe control software. Using a RPI 5 to connect to the G
 - Host PC, any should do as long as you can SSH to the Pi and have a web browser. It needs to of course be on the same network 
 
 ## Basic Commands
-I'll add build commands later and the rest of it but this is more for my own quick reference
-Starting the service: sudo systemctl start vxi-broker
-Verify status: vxi status
-Opening web service from host PC: http://<your-pi-ip>:8080 
+I'll add build commands later and the rest of it but this is more for my own quick reference  
+Starting the service: sudo systemctl start vxi-broker  
+Verify status: vxi status  
+Opening web service from host PC: http://<your-pi-ip>:8080   
