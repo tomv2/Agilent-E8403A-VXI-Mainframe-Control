@@ -53,7 +53,7 @@ if (!string.IsNullOrWhiteSpace(dlis) ||
         $"DLIS:{dlis ?? ""}\n" +
         $"INF:{information ?? ""}";
 }
-   string kind=Classify(idn,secondary);if(kind=="e1406a-controller"){try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));config=await dev.ExecuteAsync("VXI:CONF:INF:ALL?",true,ct);}catch{}}
+   string kind=Classify(idn,secondary);
    found.Add(new(board,primary,secondary,idn,kind,config));}}
  return found;}
  static string Classify(string? idn,int secondary){string s=idn??"";if(s.Contains("E1406",StringComparison.OrdinalIgnoreCase))return "e1406a-controller";if(s.Contains("RACAL",StringComparison.OrdinalIgnoreCase)||s.Contains("3271",StringComparison.OrdinalIgnoreCase))return "module-endpoint";if(s.Contains("SWITCH",StringComparison.OrdinalIgnoreCase))return "switchbox";return secondary==0?"gpib-device":"instrument-endpoint";}

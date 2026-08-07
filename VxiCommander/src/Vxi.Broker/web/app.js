@@ -415,8 +415,7 @@ function renderModules() {
         <div class="advanced-grid">
           <div>
             <label>Physical slot</label>
-            <input data-slot type="number" min="1"
-              max="${preference.chassisSlots}"
+            <input data-slot type="number" min="0" max="12"
               value="${item.address.physicalSlot ?? ""}">
           </div>
           <div>
