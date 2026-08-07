@@ -16,13 +16,318 @@ input,select{width:100%;border:1px solid #98a2b3;border-radius:7px;padding:8px;b
 .front-panel-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.front-panel-title h3,.front-panel-title p{margin:0}.front-panel-title p{margin-top:4px;color:#667085}
 .relay-grid{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:12px}.relay-card{background:#fff;border:1px solid #98a2b3;border-radius:12px;padding:10px}
 .relay-card-header{display:flex;justify-content:space-between}.relay-state{font-size:.75rem;color:#475467}.relay-svg{width:100%;height:auto}.panel-outline{fill:#eef2f6;stroke:#98a2b3}
-.port{fill:#fff;stroke:#344054;stroke-width:3}.active-port{fill:#12b76a;stroke:#027a48}.common-port{fill:#d1e9ff}.relay-pole{stroke:#475467;stroke-width:7;stroke-linecap:round;transition:all .25s ease}.relay-pole.energised{stroke:#175cd3}.pivot{fill:#344054}
+.port{fill:#fff;stroke:#344054;stroke-width:3}.active-port{fill:#12b76a;stroke:#027a48}.common-port{fill:#d1e9ff}.relay-pole{stroke:#12b76a;stroke-width:7;stroke-linecap:round;transition:all .25s ease;filter:drop-shadow(0 0 4px rgb(18 183 106 / 55%))}.relay-pole.energised{stroke:#12b76a;filter:drop-shadow(0 0 4px rgb(18 183 106 / 55%))}.pivot{fill:#344054}
 .clickable-contact{cursor:pointer}.clickable-contact:hover .port{stroke:#175cd3;stroke-width:5}.relay-svg text{font-size:12px;fill:#344054;font-weight:600}
-.module-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.module-tab.active{background:#175cd3;color:#fff;border-color:#175cd3}
-.mux-front-panel{display:grid;grid-template-columns:repeat(6,minmax(100px,1fr));gap:10px;align-items:stretch}.mux-bank{position:relative;background:#101828;color:#fff;border-radius:12px;padding:10px 8px;min-height:420px;display:flex;flex-direction:column;align-items:center}
-.mux-bank-number{font-weight:700;letter-spacing:.06em;margin-bottom:10px}.mux-common{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.72rem}.port-dot{width:22px;height:22px;border-radius:50%;display:inline-block;background:#fff;border:4px solid #98a2b3;box-shadow:0 0 0 2px #344054}.port-dot.common{background:#84caff;border-color:#1570ef}
-.mux-route{position:relative;width:52px;flex:1;min-height:130px}.mux-spine{position:absolute;left:24px;top:8px;bottom:8px;width:4px;background:#667085}.mux-pole{position:absolute;left:26px;top:4px;width:5px;height:calc(100% - 8px);background:#344054;transform-origin:top center;transition:transform .25s ease,background .25s ease}.mux-pole.connected{background:#12b76a;transform:rotate(calc((var(--selected-index) - 1.5) * 8deg))}
-.mux-inputs{display:flex;flex-direction:column;gap:8px;width:100%}.mux-port{display:flex;align-items:center;justify-content:center;gap:7px;background:#1d2939;color:#fff;border-color:#475467;padding:7px}.mux-port:hover{background:#344054}.mux-port.selected{background:#027a48;border-color:#12b76a}.mux-port.selected .port-dot{background:#12b76a;border-color:#6ce9a6}.read-bank{margin-top:10px;width:100%;font-size:.78rem;padding:6px}
+.module-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.module-tab.active{background:#175cd3;color:#fff;border-color:#175cd3}
+.mux-bank-list{display:flex;flex-direction:column;gap:14px}.mux-bank-row{display:grid;grid-template-columns:120px minmax(420px,1fr) 110px;gap:14px;align-items:center;padding:12px;background:#101828;color:#fff;border-radius:12px}
+.mux-bank-label{display:flex;flex-direction:column;gap:5px}.mux-bank-label strong{font-size:1.05rem}.mux-bank-label span{font-size:.78rem;color:#98a2b3}
+.mux-diagram{position:relative;min-width:0}.mux-bank-svg{width:100%;height:180px;display:block}.mux-svg-label{font-size:14px;fill:#344054;font-weight:700}.mux-path{fill:none;stroke-linecap:round;stroke-linejoin:round}.mux-path.idle{stroke:#98a2b3;stroke-width:6;stroke-dasharray:10 8}.mux-path.active{stroke:#12b76a;stroke-width:9;filter:drop-shadow(0 0 4px #12b76a)}.mux-selected-centre{fill:#d1fadf}
+.mux-port-buttons{position:absolute;right:10px;top:18px;bottom:18px;display:flex;flex-direction:column;justify-content:space-between}.mux-port-button{display:flex;align-items:center;justify-content:center;gap:8px;min-width:82px;padding:6px;background:#fff;color:#1d2939}.mux-port-button.selected{background:#027a48;color:#fff;border-color:#12b76a}
+.port-dot{width:18px;height:18px;border-radius:50%;display:inline-block;background:#fff;border:3px solid #98a2b3}.mux-port-button.selected .port-dot{background:#12b76a;border-color:#d1fadf}.read-bank{width:100%;padding:8px}
 .operation{border-top:1px solid #eaecf0;padding:15px 0}.operation-actions{display:flex;gap:8px;margin-top:10px}
-@media(max-width:1000px){.mux-front-panel{grid-template-columns:repeat(3,1fr)}.relay-grid{grid-template-columns:1fr}}
-@media(max-width:760px){.layout{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.status{width:100%;margin-left:0}.advanced-grid{grid-template-columns:1fr}.mux-front-panel{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1050px){.mux-bank-row{grid-template-columns:90px 1fr}.read-bank{grid-column:1/-1}.relay-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.status{width:100%;margin-left:0}.advanced-grid{grid-template-columns:1fr}.mux-bank-row{grid-template-columns:1fr}.mux-bank-svg{height:150px}.mux-port-buttons{right:4px}}
+
+
+/* Fully SVG-based multiplexer front panel */
+.mux-bank-row{
+  display:grid;
+  grid-template-columns:120px minmax(480px,1fr) 110px;
+  gap:14px;
+  align-items:center;
+  padding:12px;
+  background:#101828;
+  color:#fff;
+  border-radius:12px;
+  min-height:270px;
+  overflow:hidden;
+}
+
+.mux-diagram{
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  border-radius:16px;
+}
+
+.mux-bank-svg{
+  display:block;
+  width:100%;
+  height:auto;
+  min-height:230px;
+}
+
+.mux-panel-background{
+  fill:#f8fafc;
+  stroke:#98a2b3;
+  stroke-width:2;
+}
+
+.mux-svg-label{
+  font-size:16px;
+  fill:#344054;
+  font-weight:700;
+}
+
+.mux-common-port{
+  fill:#d1e9ff;
+  stroke:#344054;
+  stroke-width:4;
+}
+
+.mux-path{
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.mux-path.idle{
+  stroke:#98a2b3;
+  stroke-width:8;
+  stroke-dasharray:12 10;
+}
+
+.mux-path.active{
+  stroke:#12b76a;
+  stroke-width:11;
+  filter:drop-shadow(0 0 5px rgb(18 183 106 / 60%));
+}
+
+.mux-svg-button{
+  cursor:pointer;
+  outline:none;
+}
+
+.mux-svg-button-box{
+  fill:#fff;
+  stroke:#98a2b3;
+  stroke-width:3;
+  transition:fill .15s ease,stroke .15s ease;
+}
+
+.mux-svg-button-port{
+  fill:#fff;
+  stroke:#98a2b3;
+  stroke-width:4;
+}
+
+.mux-svg-button-label{
+  font-size:18px;
+  fill:#1d2939;
+  font-weight:700;
+  pointer-events:none;
+}
+
+.mux-svg-button:hover .mux-svg-button-box,
+.mux-svg-button:focus .mux-svg-button-box{
+  fill:#eff8ff;
+  stroke:#175cd3;
+}
+
+.mux-svg-button.selected .mux-svg-button-box{
+  fill:#027a48;
+  stroke:#12b76a;
+  filter:drop-shadow(0 0 4px rgb(18 183 106 / 45%));
+}
+
+.mux-svg-button.selected .mux-svg-button-port{
+  fill:#12b76a;
+  stroke:#d1fadf;
+}
+
+.mux-svg-button.selected .mux-svg-button-label{
+  fill:#fff;
+}
+
+@media(max-width:1050px){
+  .mux-bank-row{
+    grid-template-columns:90px minmax(360px,1fr);
+  }
+
+  .read-bank{
+    grid-column:1/-1;
+  }
+}
+
+@media(max-width:760px){
+  .mux-bank-row{
+    grid-template-columns:1fr;
+  }
+
+  .mux-bank-svg{
+    min-height:190px;
+  }
+}
+
+/* Driver-generated tools and diagnostics */
+.driver-tools{margin-top:18px;border:1px solid #98a2b3;border-radius:12px;overflow:hidden;background:#fff}
+.driver-tools>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px;cursor:pointer;font-weight:700;background:#f9fafb;color:#344054}
+.driver-tools>summary:hover{background:#f2f4f7}.tools-count{font-size:.78rem;font-weight:600;color:#667085}
+.driver-tools-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;padding:14px;border-top:1px solid #eaecf0}
+.tool-command{display:flex;flex-direction:column;gap:10px;min-width:0;padding:12px;border:1px solid #d0d5dd;border-radius:10px;background:#fff}
+.tool-command.disruptive{border-color:#fda29b;background:#fffbfa}.tool-command-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.tool-command-header p{margin:3px 0 0;color:#667085;font-size:.84rem}.tool-kind{flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#f2f4f7;color:#475467;font-size:.72rem;white-space:nowrap}
+.tool-command.disruptive .tool-kind{background:#fee4e2;color:#b42318}.tool-fields{display:grid;gap:8px}.tool-field{display:grid;gap:4px;color:#475467;font-size:.82rem}
+.tool-field small{color:#667085;line-height:1.25}.tool-actions{margin-top:auto;display:flex;justify-content:flex-end}.danger-outline{color:#b42318;border-color:#f04438;background:#fff}
+.danger-outline:hover{color:#fff;background:#b42318}
+
+/* Mainframe slot ordered module list */
+.module-slot-banner{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  margin:-4px -4px 12px;
+  padding:10px;
+  border:1px solid #84adff;
+  border-radius:10px;
+  background:#eff8ff;
+}
+
+.module-slot-banner.unassigned{
+  border-color:#fdb022;
+  background:#fffaeb;
+}
+
+.slot-number-block{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:62px;
+  padding:6px;
+  border-radius:8px;
+  background:#175cd3;
+  color:#fff;
+}
+
+.module-slot-banner.unassigned .slot-number-block{
+  background:#dc6803;
+}
+
+.slot-caption{
+  font-size:.62rem;
+  font-weight:700;
+  letter-spacing:.05em;
+  text-align:center;
+  opacity:.9;
+}
+
+.slot-number-block strong{
+  font-size:1.9rem;
+  line-height:1;
+}
+
+.slot-card-summary{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:3px;
+}
+
+.slot-card-name{
+  overflow:hidden;
+  font-weight:700;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#1d2939;
+}
+
+.slot-card-driver{
+  overflow:hidden;
+  font-size:.8rem;
+  color:#475467;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.slot-address-summary{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:4px;
+  color:#475467;
+  font-size:.76rem;
+  white-space:nowrap;
+}
+
+.module-list-order-note{
+  margin:4px 0 10px;
+  color:#667085;
+  font-size:.78rem;
+}
+
+@media(max-width:760px){
+  .module-slot-banner{
+    grid-template-columns:78px minmax(0,1fr);
+  }
+
+  .slot-address-summary{
+    grid-column:1/-1;
+    flex-direction:row;
+    justify-content:flex-end;
+  }
+}
+
+/* Graphical E8403A discovery and slot assignment */
+.discovery-mainframe{display:grid;gap:14px}.mainframe-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.mainframe-heading h3,.mainframe-heading p{margin:0}.mainframe-heading p{margin-top:4px;color:#667085}.mainframe-count{padding:5px 9px;border-radius:999px;background:#eff8ff;color:#175cd3;font-size:.78rem;font-weight:700}.mainframe-layout{display:grid;grid-template-columns:minmax(420px,1fr) minmax(230px,310px);gap:16px;align-items:start}.mainframe-chassis{display:grid;gap:5px;padding:14px;border:8px solid #344054;border-radius:14px;background:#101828;box-shadow:inset 0 0 0 2px #667085}.mainframe-slot{display:grid;grid-template-columns:54px minmax(0,1fr);gap:10px;align-items:center;width:100%;min-height:58px;margin:0;padding:6px 10px 6px 6px;text-align:left;border:1px solid #667085;border-radius:6px;background:#1d2939;color:#fff}.mainframe-slot:hover{border-color:#84adff;background:#344054}.mainframe-slot.occupied{border-color:#12b76a;background:#073b2a}.mainframe-slot-number{display:grid;place-items:center;align-self:stretch;border-radius:5px;background:#475467;font-size:1.35rem;font-weight:800}.mainframe-slot.occupied .mainframe-slot-number{background:#027a48}.mainframe-slot-content{display:grid;gap:2px;min-width:0}.mainframe-slot-content strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mainframe-slot-content small{color:#d0d5dd}.mainframe-slot-content em{color:#84adff;font-size:.7rem;font-style:normal;font-weight:700;text-transform:uppercase}.mainframe-slot.occupied .mainframe-slot-content em{color:#6ce9a6}.unknown-device-panel{display:grid;gap:8px;padding:13px;border:1px solid #d0d5dd;border-radius:10px;background:#f9fafb}.unknown-device-panel h4{margin:0 0 3px}.unknown-device{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;cursor:pointer}.unknown-device:has(input:checked){border-color:#175cd3;box-shadow:0 0 0 2px #d1e9ff}.unknown-device input{width:auto}.unknown-device span{display:grid}.unknown-device small{color:#667085}.assignment-help{margin:5px 0 0;color:#667085;font-size:.8rem}.raw-discovery summary{cursor:pointer;color:#475467;font-weight:700}.raw-discovery pre{max-height:300px}@media(max-width:900px){.mainframe-layout{grid-template-columns:1fr}}
+
+/* Simplified physical-slot presentation */
+.module-slot-banner.simplified{
+  grid-template-columns:92px minmax(0,1fr);
+}
+
+.module-slot-banner.simplified .slot-address-summary{
+  display:none;
+}
+
+.module-slot-banner.simplified .slot-card-driver{
+  font-size:.86rem;
+}
+
+.discovery-mainframe.simplified .mainframe-count{
+  display:none;
+}
+
+.discovery-mainframe.simplified .mainframe-slot-content em{
+  display:none;
+}
+
+.discovery-mainframe.simplified .mainframe-slot-content small{
+  color:#d0d5dd;
+}
+
+.discovery-mainframe.simplified .unknown-device small{
+  color:#667085;
+}
+
+.discovery-mainframe.simplified .assignment-help{
+  display:none;
+}
+
+.discovery-mainframe.simplified .raw-discovery{
+  margin-top:4px;
+}
+
+.discovery-mainframe.simplified .raw-discovery summary{
+  font-size:.8rem;
+  color:#667085;
+}
+/* Physical-slot-only normal card presentation */
+.module-slot-banner.physical-slot-only{
+  grid-template-columns:92px minmax(0,1fr);
+  margin-bottom:10px;
+}
+
+.module-slot-banner.physical-slot-only .slot-card-driver,
+.module-slot-banner.physical-slot-only .slot-address-summary{
+  display:none;
+}
+
+.physical-slot-only-card > .engineering-summary{
+  display:none !important;
+}
+
+.physical-slot-only-card details{
+  margin-top:8px;
+}

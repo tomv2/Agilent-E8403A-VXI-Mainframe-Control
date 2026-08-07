@@ -24,8 +24,36 @@ public sealed class LinuxGpib:IDisposable {
 }
 
 public static class GpibDiscovery {
- public static async Task<IReadOnlyList<GpibProbeResult>> ScanAsync(int board,int timeoutCode,CancellationToken ct){var found=new List<GpibProbeResult>();for(int primary=1;primary<=30;primary++){ct.ThrowIfCancellationRequested();if(!LinuxGpib.IsListener(board,primary,0))continue;for(int secondary=0;secondary<=30;secondary++){ct.ThrowIfCancellationRequested();if(secondary>0&&!LinuxGpib.IsListener(board,primary,secondary))continue;string? idn=null,config=null;try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));idn=await dev.ExecuteAsync("*IDN?",true,ct);}catch{}
-   string kind=Classify(idn,secondary);if(kind=="e1406a-controller"){try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));config=await dev.ExecuteAsync("VXI:CONF:DLIS?",true,ct);}catch{}}
+ public static async Task<IReadOnlyList<GpibProbeResult>> ScanAsync(int board,int timeoutCode,CancellationToken ct){var found=new List<GpibProbeResult>();for(int primary=1;primary<=30;primary++){ct.ThrowIfCancellationRequested();if(!LinuxGpib.IsListener(board,primary,0))continue;for(int secondary=0;secondary<=30;secondary++){ct.ThrowIfCancellationRequested();if(secondary>0&&!LinuxGpib.IsListener(board,primary,secondary))continue;string? idn=null,config=null;string? dlis = null;
+string? information = null;
+
+try
+{
+    using var dev = new LinuxGpib(
+        new(board, primary, secondary, timeoutCode));
+
+    dlis = await dev.ExecuteAsync(
+        "VXI:CONF:DLIS?",
+        true,
+        ct);
+
+    information = await dev.ExecuteAsync(
+        "VXI:CONF:INF:ALL?",
+        true,
+        ct);
+}
+catch
+{
+}
+
+if (!string.IsNullOrWhiteSpace(dlis) ||
+    !string.IsNullOrWhiteSpace(information))
+{
+    config =
+        $"DLIS:{dlis ?? ""}\n" +
+        $"INF:{information ?? ""}";
+}
+   string kind=Classify(idn,secondary);if(kind=="e1406a-controller"){try{using var dev=new LinuxGpib(new(board,primary,secondary,timeoutCode));config=await dev.ExecuteAsync("VXI:CONF:INF:ALL?",true,ct);}catch{}}
    found.Add(new(board,primary,secondary,idn,kind,config));}}
  return found;}
  static string Classify(string? idn,int secondary){string s=idn??"";if(s.Contains("E1406",StringComparison.OrdinalIgnoreCase))return "e1406a-controller";if(s.Contains("RACAL",StringComparison.OrdinalIgnoreCase)||s.Contains("3271",StringComparison.OrdinalIgnoreCase))return "module-endpoint";if(s.Contains("SWITCH",StringComparison.OrdinalIgnoreCase))return "switchbox";return secondary==0?"gpib-device":"instrument-endpoint";}

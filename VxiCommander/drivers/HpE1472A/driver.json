@@ -11,5 +11,30 @@
     "network": false,
     "hardware": false,
     "filesystem": "none"
-  }
+  },
+  "allowedCommandPrefixes": [
+    "CLOS (@",
+    "CLOS? (@",
+    "OPEN? (@",
+    "*IDN?",
+    "*CLS",
+    "*TST?",
+    "*OPC?",
+    "*RST",
+    "*SAV ",
+    "*RCL ",
+    "SYST:CTYP?",
+    "SYST:CDES?",
+    "SYST:COPT?",
+    "SYST:ERR?",
+    "SYST:CPON "
+  ],
+  "allowedCategories": [
+    "relay-switch",
+    "relay-query",
+    "instrument-query",
+    "diagnostic",
+    "reset",
+    "state-management"
+  ]
 }

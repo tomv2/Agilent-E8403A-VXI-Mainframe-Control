@@ -11,5 +11,38 @@
     "network": false,
     "hardware": false,
     "filesystem": "none"
-  }
+  },
+  "allowedCommandPrefixes": [
+    "CLOS (@",
+    "CLOS? (@",
+    "OPEN (@",
+    "OPEN? (@",
+    "*IDN?",
+    "*CLS",
+    "*TST?",
+    "*OPC?",
+    "*RST",
+    "*TRG",
+    "SYST:CTYP?",
+    "SYST:CDES?",
+    "SYST:ERR?",
+    "SYST:CPON ",
+    "SCAN (@",
+    "TRIG:SOUR ",
+    "TRIG:SOUR?",
+    "ARM:COUN ",
+    "ARM:COUN?",
+    "INIT",
+    "ABOR",
+    "STAT:OPER:EVEN?"
+  ],
+  "allowedCategories": [
+    "relay-switch",
+    "relay-query",
+    "instrument-query",
+    "diagnostic",
+    "reset",
+    "scan-control",
+    "scan-query"
+  ]
 }
